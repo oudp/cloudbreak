@@ -6,7 +6,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import com.sequenceiq.cloudbreak.auth.altus.EntitlementService;
 import com.sequenceiq.cloudbreak.ccm.termination.CcmResourceTerminationListener;
+import com.sequenceiq.cloudbreak.ccm.termination.CcmV2AgentTerminationListener;
 import com.sequenceiq.cloudbreak.common.event.Selectable;
 import com.sequenceiq.flow.event.EventSelectorUtil;
 import com.sequenceiq.flow.reactor.api.handler.EventHandler;
@@ -27,6 +29,12 @@ public class CcmKeyDeregistrationHandler implements EventHandler<CcmKeyDeregistr
     @Inject
     private EventBus eventBus;
 
+    @Inject
+    private EntitlementService entitlementService;
+
+    @Inject
+    private CcmV2AgentTerminationListener ccmV2AgentTerminationListener;
+
     @Override
     public void accept(Event<CcmKeyDeregistrationRequest> requestEvent) {
 
@@ -34,8 +42,12 @@ public class CcmKeyDeregistrationHandler implements EventHandler<CcmKeyDeregistr
         if (Boolean.TRUE.equals(request.getUseCcm())) {
             LOGGER.debug("De-registering CCM key for freeipa stack {}", request.getResourceId());
             try {
-                ccmResourceTerminationListener.deregisterCcmSshTunnelingKey(request.getActorCrn(), request.getAccountId(), request.getKeyId(),
-                        request.getMinaSshdServiceId());
+                if (!entitlementService.ccmV2Enabled(request.getAccountId())) {
+                    ccmResourceTerminationListener.deregisterCcmSshTunnelingKey(request.getActorCrn(), request.getAccountId(), request.getKeyId(),
+                            request.getMinaSshdServiceId());
+                } else {
+                    ccmV2AgentTerminationListener.deregisterInvertingProxyAgent(request.getCcmV2AgentCrn());
+                }
             } catch (Exception ex) {
                 LOGGER.warn("CCM key de-registration failed", ex);
             }
