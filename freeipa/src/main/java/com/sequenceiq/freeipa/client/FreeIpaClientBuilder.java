@@ -76,7 +76,7 @@ public class FreeIpaClientBuilder {
 
     private static final int TEST_CONNECTION_READ_TIMEOUT_MILLIS = 5 * 1000;
 
-    private static final Set<Integer> UNAVIALLBE_PING_HTTP_RESPONSES = Set.of(HttpStatus.INTERNAL_SERVER_ERROR.value(), HttpStatus.SERVICE_UNAVAILABLE.value());
+    private static final Set<Integer> UNAVAILABLE_PING_HTTP_RESPONSES = Set.of(HttpStatus.INTERNAL_SERVER_ERROR.value(), HttpStatus.SERVICE_UNAVAILABLE.value());
 
     private final PoolingHttpClientConnectionManager connectionManager;
 
@@ -169,14 +169,16 @@ public class FreeIpaClientBuilder {
                 additionalHeaders.forEach(request::addHeader);
                 additionalHeadersStickySessionFirstRpc.forEach(request::addHeader);
                 try (CloseableHttpResponse response = client.execute(request)) {
-                    if (UNAVIALLBE_PING_HTTP_RESPONSES.contains(response.getStatusLine().getStatusCode())) {
+                    if (UNAVAILABLE_PING_HTTP_RESPONSES.contains(response.getStatusLine().getStatusCode())) {
                         throw new HttpException("Ping failed with http status code " + response.getStatusLine().getStatusCode());
                     }
                     stickyId = getStickIdFromHeaders(response);
                 }
                 LOGGER.debug("Freeipa is reachable");
             } catch (Exception e) {
-                throw new FreeIpaHostNotAvailableException("Ping failed", e);
+                String msg = "Ping failed";
+                LOGGER.debug(msg, e);
+                throw new RetryableFreeIpaClientException(msg, new FreeIpaHostNotAvailableException(msg, e));
             }
         }
         CookieAndStickyId cookieAndStickyId = connect(user, pass, clientConfig.getApiAddress(), port, stickyIdHeader, stickyId);
