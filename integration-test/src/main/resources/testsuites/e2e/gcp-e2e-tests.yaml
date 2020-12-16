@@ -2,8 +2,8 @@ name: "gcp-e2e-tests"
 tests:
   - name: "gcp-e2e-tests"
     classes:
-      - name: com.sequenceiq.it.cloudbreak.testcase.e2e.environment.NewNetworkEnvironmentTests
+#      - name: com.sequenceiq.it.cloudbreak.testcase.e2e.environment.NewNetworkEnvironmentTests - It is based on new network, but IT configured for different project for network and new network is not allowed there
       - name: com.sequenceiq.it.cloudbreak.testcase.e2e.environment.EnvironmentStopStartTests
       - name: com.sequenceiq.it.cloudbreak.testcase.e2e.imagevalidation.PrewarmImageValidatorE2ETest
-      - name: com.sequenceiq.it.cloudbreak.testcase.e2e.sdx.SdxImagesTests
+#      - name: com.sequenceiq.it.cloudbreak.testcase.e2e.sdx.SdxImagesTests - It is based on new network, but IT configured for different project for network and new network is not allowed there
       - name: com.sequenceiq.it.cloudbreak.testcase.e2e.sdx.SdxRepairTests
