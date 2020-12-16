@@ -601,7 +601,12 @@ public class ClusterHostServiceRunner {
         ExposedService rangerService = exposedServiceCollector.getRangerService();
         List<String> rangerLocations = serviceLocations.get(rangerService.getServiceName());
         if (!CollectionUtils.isEmpty(rangerLocations)) {
-            serviceLocations.put(rangerService.getServiceName(), getSingleRangerFqdn(gatewayConfig.getHostname(), rangerLocations));
+            String gatewayGroupName = cluster.getStack().getPrimaryGatewayInstance().getInstanceGroup().getGroupName();
+            List<String> rangerGatewayHosts = rangerLocations
+                    .stream()
+                    .filter(s -> s.contains(gatewayGroupName))
+                    .collect(Collectors.toList());
+            serviceLocations.put(rangerService.getServiceName(), rangerGatewayHosts);
         }
         serviceLocations.put(exposedServiceCollector.getClouderaManagerService().getServiceName(), asList(gatewayConfig.getHostname()));
         gateway.put("location", serviceLocations);
@@ -652,10 +657,6 @@ public class ClusterHostServiceRunner {
             componentLocation.replace(impalaService.getServiceName(), locations);
         }
         return componentLocation;
-    }
-
-    private List<String> getSingleRangerFqdn(String primaryGatewayFqdn, List<String> rangerLocations) {
-        return rangerLocations.contains(primaryGatewayFqdn) ? asList(primaryGatewayFqdn) : asList(rangerLocations.iterator().next());
     }
 
     private List<String> asList(String value) {
