@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import com.sequenceiq.common.api.cloudstorage.old.AdlsGen2CloudStorageV1Parameters;
 import com.sequenceiq.common.api.cloudstorage.old.GcsCloudStorageV1Parameters;
 import com.sequenceiq.common.api.cloudstorage.old.S3CloudStorageV1Parameters;
-import com.sequenceiq.common.api.telemetry.request.LoggingRequest;
+import com.sequenceiq.common.api.telemetry.request.BackupRequest;
 import com.sequenceiq.common.api.telemetry.request.TelemetryRequest;
 import com.sequenceiq.freeipa.api.model.Backup;
 import com.sequenceiq.freeipa.configuration.BackupConfiguration;
@@ -29,34 +29,34 @@ public class BackupConverter {
 
     public Backup convert(TelemetryRequest request) {
         Backup backup = null;
-        if (freeIpaBackupEnabled && request != null && request.getLogging() != null) {
+        if (freeIpaBackupEnabled && request != null && request.getBackup() != null) {
             backup = new Backup();
             backup.setMonthlyFullEnabled(backupConfiguration.isMonthlyFullEnabled());
             backup.setInitialFullEnabled(backupConfiguration.isRunInitialFullAfterInstall());
             backup.setHourlyEnabled(backupConfiguration.isHourlyEnabled());
-            decorateBackupFromLoggingRequest(backup, request.getLogging());
+            decorateBackupFromBackupRequest(backup, request.getBackup());
         }
         return backup;
     }
 
-    private void decorateBackupFromLoggingRequest(Backup backup, LoggingRequest loggingRequest) {
-        if (loggingRequest != null) {
-            backup.setStorageLocation(loggingRequest.getStorageLocation());
-            if (loggingRequest.getS3() != null) {
+    private void decorateBackupFromBackupRequest(Backup backup, BackupRequest backupRequest) {
+        if (backupRequest != null) {
+            backup.setStorageLocation(backupRequest.getStorageLocation());
+            if (backupRequest.getS3() != null) {
                 S3CloudStorageV1Parameters s3Params = new S3CloudStorageV1Parameters();
-                s3Params.setInstanceProfile(loggingRequest.getS3().getInstanceProfile());
+                s3Params.setInstanceProfile(backupRequest.getS3().getInstanceProfile());
                 backup.setS3(s3Params);
-            } else if (loggingRequest.getAdlsGen2() != null) {
+            } else if (backupRequest.getAdlsGen2() != null) {
                 AdlsGen2CloudStorageV1Parameters adlsGen2Params = new AdlsGen2CloudStorageV1Parameters();
-                AdlsGen2CloudStorageV1Parameters adlsGen2FromRequest = loggingRequest.getAdlsGen2();
+                AdlsGen2CloudStorageV1Parameters adlsGen2FromRequest = backupRequest.getAdlsGen2();
                 adlsGen2Params.setAccountKey(adlsGen2FromRequest.getAccountKey());
                 adlsGen2Params.setAccountName(adlsGen2FromRequest.getAccountName());
                 adlsGen2Params.setSecure(adlsGen2FromRequest.isSecure());
                 adlsGen2Params.setManagedIdentity(adlsGen2FromRequest.getManagedIdentity());
                 backup.setAdlsGen2(adlsGen2Params);
-            } else if (loggingRequest.getGcs() != null) {
+            } else if (backupRequest.getGcs() != null) {
                 GcsCloudStorageV1Parameters gcsParams = new GcsCloudStorageV1Parameters();
-                GcsCloudStorageV1Parameters gcsFromRequest = loggingRequest.getGcs();
+                GcsCloudStorageV1Parameters gcsFromRequest = backupRequest.getGcs();
                 gcsParams.setServiceAccountEmail(gcsFromRequest.getServiceAccountEmail());
                 backup.setGcs(gcsParams);
             }

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import com.sequenceiq.common.api.cloudstorage.old.AdlsGen2CloudStorageV1Parameters;
 import com.sequenceiq.common.api.cloudstorage.old.S3CloudStorageV1Parameters;
-import com.sequenceiq.common.api.telemetry.request.LoggingRequest;
+import com.sequenceiq.common.api.telemetry.request.BackupRequest;
 import com.sequenceiq.common.api.telemetry.request.TelemetryRequest;
 import com.sequenceiq.freeipa.api.model.Backup;
 import com.sequenceiq.freeipa.configuration.BackupConfiguration;
@@ -31,10 +31,10 @@ public class BackupConverterTest {
     public void testConvertFromS3Request() {
         // GIVEN
         TelemetryRequest telemetryRequest = new TelemetryRequest();
-        LoggingRequest logging = new LoggingRequest();
-        logging.setS3(new S3CloudStorageV1Parameters());
-        logging.setStorageLocation("s3://mybucket");
-        telemetryRequest.setLogging(logging);
+        BackupRequest backup = new BackupRequest();
+        backup.setS3(new S3CloudStorageV1Parameters());
+        backup.setStorageLocation("s3://mybucket");
+        telemetryRequest.setBackup(backup);
         // WHEN
         Backup result = underTest.convert(telemetryRequest);
         // THEN
@@ -45,12 +45,12 @@ public class BackupConverterTest {
     public void testConvertFromAzureRequest() {
         // GIVEN
         TelemetryRequest telemetryRequest = new TelemetryRequest();
-        LoggingRequest logging = new LoggingRequest();
+        BackupRequest backup = new BackupRequest();
         AdlsGen2CloudStorageV1Parameters adlsGen2CloudStorageV1Parameters = new AdlsGen2CloudStorageV1Parameters();
         adlsGen2CloudStorageV1Parameters.setAccountKey("someaccount");
-        logging.setAdlsGen2(adlsGen2CloudStorageV1Parameters);
-        logging.setStorageLocation("abfs://mybucket@someaccount");
-        telemetryRequest.setLogging(logging);
+        backup.setAdlsGen2(adlsGen2CloudStorageV1Parameters);
+        backup.setStorageLocation("abfs://mybucket@someaccount");
+        telemetryRequest.setBackup(backup);
         // WHEN
         Backup result = underTest.convert(telemetryRequest);
         // THEN

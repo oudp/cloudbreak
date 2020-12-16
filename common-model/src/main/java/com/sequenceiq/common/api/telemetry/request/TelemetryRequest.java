@@ -14,6 +14,9 @@ public class TelemetryRequest extends TelemetryBase {
     @ApiModelProperty(TelemetryModelDescription.TELEMETRY_LOGGING)
     private LoggingRequest logging;
 
+    @ApiModelProperty(TelemetryModelDescription.TELEMETRY_BACKUP)
+    private BackupRequest backup;
+
     @ApiModelProperty(TelemetryModelDescription.TELEMETRY_WORKLOAD_ANALYTICS)
     private WorkloadAnalyticsRequest workloadAnalytics;
 
@@ -26,6 +29,14 @@ public class TelemetryRequest extends TelemetryBase {
 
     public void setLogging(LoggingRequest logging) {
         this.logging = logging;
+    }
+
+    public BackupRequest getBackup() {
+        return backup;
+    }
+
+    public void setBackup(BackupRequest backup) {
+        this.backup = backup;
     }
 
     public WorkloadAnalyticsRequest getWorkloadAnalytics() {

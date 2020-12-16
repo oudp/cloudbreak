@@ -13,6 +13,8 @@ public class EnvironmentTelemetry implements Serializable {
 
     private EnvironmentLogging logging;
 
+    private EnvironmentBackup backup;
+
     private EnvironmentWorkloadAnalytics workloadAnalytics;
 
     private EnvironmentFeatures features;
@@ -25,6 +27,14 @@ public class EnvironmentTelemetry implements Serializable {
 
     public void setLogging(EnvironmentLogging logging) {
         this.logging = logging;
+    }
+
+    public EnvironmentBackup getBackup() {
+        return backup;
+    }
+
+    public void setBackup(EnvironmentBackup backup) {
+        this.backup = backup;
     }
 
     public EnvironmentWorkloadAnalytics getWorkloadAnalytics() {

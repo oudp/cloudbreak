@@ -10,6 +10,7 @@ import com.sequenceiq.common.api.cloudstorage.old.GcsCloudStorageV1Parameters;
 import com.sequenceiq.common.api.cloudstorage.old.S3CloudStorageV1Parameters;
 import com.sequenceiq.common.api.telemetry.model.CloudwatchParams;
 import com.sequenceiq.common.api.telemetry.model.Features;
+import com.sequenceiq.common.api.telemetry.request.BackupRequest;
 import com.sequenceiq.common.api.telemetry.request.FeaturesRequest;
 import com.sequenceiq.common.api.telemetry.request.LoggingRequest;
 import com.sequenceiq.common.api.telemetry.request.TelemetryRequest;
@@ -18,6 +19,7 @@ import com.sequenceiq.common.api.telemetry.response.FeaturesResponse;
 import com.sequenceiq.common.api.telemetry.response.LoggingResponse;
 import com.sequenceiq.common.api.telemetry.response.TelemetryResponse;
 import com.sequenceiq.common.api.telemetry.response.WorkloadAnalyticsResponse;
+import com.sequenceiq.environment.environment.dto.telemetry.EnvironmentBackup;
 import com.sequenceiq.environment.environment.dto.telemetry.EnvironmentFeatures;
 import com.sequenceiq.environment.environment.dto.telemetry.EnvironmentLogging;
 import com.sequenceiq.environment.environment.dto.telemetry.EnvironmentTelemetry;
@@ -44,6 +46,7 @@ public class TelemetryApiConverter {
         if (request != null) {
             telemetry = new EnvironmentTelemetry();
             telemetry.setLogging(createLoggingFromRequest(request.getLogging()));
+            telemetry.setBackup(createBackupFromRequest(request.getBackup()));
             telemetry.setWorkloadAnalytics(createWorkloadAnalyticsFromRequest(request.getWorkloadAnalytics()));
             telemetry.setFeatures(createEnvironmentFeaturesFromRequest(request.getFeatures(), accountFeatures));
             telemetry.setFluentAttributes(new HashMap<>(request.getFluentAttributes()));
@@ -70,6 +73,7 @@ public class TelemetryApiConverter {
             telemetryRequest = new TelemetryRequest();
             telemetryRequest.setFluentAttributes(telemetry.getFluentAttributes());
             telemetryRequest.setLogging(createLoggingRequestFromEnvSource(telemetry.getLogging()));
+            telemetryRequest.setBackup(createBackupRequestFromEnvSource(telemetry.getBackup()));
             telemetryRequest.setFeatures(createFeaturesRequestEnvSource(telemetry.getFeatures()));
         }
         return telemetryRequest;
@@ -86,6 +90,19 @@ public class TelemetryApiConverter {
             loggingRequest.setCloudwatch(CloudwatchParams.copy(logging.getCloudwatch()));
         }
         return loggingRequest;
+    }
+
+    private BackupRequest createBackupRequestFromEnvSource(EnvironmentBackup backup) {
+        BackupRequest backupRequest = null;
+        if (backup != null) {
+            backupRequest = new BackupRequest();
+            backupRequest.setStorageLocation(backup.getStorageLocation());
+            backupRequest.setS3(convertS3(backup.getS3()));
+            backupRequest.setAdlsGen2(convertAdlsV2(backup.getAdlsGen2()));
+            backupRequest.setGcs(convertGcs(backup.getGcs()));
+            backupRequest.setCloudwatch(CloudwatchParams.copy(backup.getCloudwatch()));
+        }
+        return backupRequest;
     }
 
     private FeaturesRequest createFeaturesRequestEnvSource(EnvironmentFeatures features) {
@@ -121,6 +138,19 @@ public class TelemetryApiConverter {
             logging.setCloudwatch(CloudwatchParams.copy(loggingRequest.getCloudwatch()));
         }
         return logging;
+    }
+
+    private EnvironmentBackup createBackupFromRequest(BackupRequest backupRequest) {
+        EnvironmentBackup backup = null;
+        if (backupRequest != null) {
+            backup = new EnvironmentBackup();
+            backup.setStorageLocation(backupRequest.getStorageLocation());
+            backup.setS3(convertS3(backupRequest.getS3()));
+            backup.setAdlsGen2(convertAdlsV2(backupRequest.getAdlsGen2()));
+            backup.setGcs(convertGcs(backupRequest.getGcs()));
+            backup.setCloudwatch(CloudwatchParams.copy(backupRequest.getCloudwatch()));
+        }
+        return backup;
     }
 
     private EnvironmentFeatures createEnvironmentFeaturesFromRequest(FeaturesRequest featuresRequest, Features accountFeatures) {
