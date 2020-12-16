@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import com.sequenceiq.cloudbreak.cloud.model.CloudLoadBalancer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -91,6 +92,7 @@ public class YarnResourceConnector implements ResourceConnector<Object> {
 
         CloudResource yarnApplication = new Builder().type(YARN_APPLICATION).name(applicationName).build();
         persistenceNotifier.notifyAllocation(yarnApplication, authenticatedContext.getCloudContext());
+        createLoadBalancers(authenticatedContext, stack, persistenceNotifier);
         return check(authenticatedContext, Collections.singletonList(yarnApplication));
     }
 
@@ -288,5 +290,16 @@ public class YarnResourceConnector implements ResourceConnector<Object> {
         String user = context.getUserName().split("@")[0].replaceAll("[^a-z0-9-_]", "");
         name += "-" + id;
         return applicationNameUtil.decorateName(name, user);
+    }
+
+    private void createLoadBalancers(AuthenticatedContext ac, CloudStack stack, PersistenceNotifier resourceNotifier) {
+        // This is setup to work with AWS LBs only.
+        for (CloudLoadBalancer loadBalancer : stack.getLoadBalancers()) {
+
+        }
+    }
+
+    private String getParentRegion() {
+        EnvironmentClientService clientService;
     }
 }

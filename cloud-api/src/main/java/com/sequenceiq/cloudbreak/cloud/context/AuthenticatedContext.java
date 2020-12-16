@@ -6,7 +6,7 @@ import com.sequenceiq.cloudbreak.cloud.model.CloudCredential;
 import com.sequenceiq.cloudbreak.cloud.model.generic.DynamicModel;
 
 /**
- * Context object to store the credentials and the cached Cloud Platfrom client object. The Cloud provider client objects are
+ * Context object to store the credentials and the cached Cloud Platform client object. The Cloud provider client objects are
  * stored in the {@link DynamicModel} and must be thread-safe.
  */
 public class AuthenticatedContext extends DynamicModel {
