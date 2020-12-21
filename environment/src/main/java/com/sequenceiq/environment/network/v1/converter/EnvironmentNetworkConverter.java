@@ -13,7 +13,7 @@ import com.sequenceiq.environment.network.dto.NetworkDto;
 public interface EnvironmentNetworkConverter {
 
     BaseNetwork convert(Environment environment, NetworkDto creationDto, Map<String, CloudSubnet> subnetMetas,
-            Map<String, CloudSubnet> gatewayEndpointSubnetMetas);
+            Map<String, CloudSubnet> endpointGatewaySubnetMetas);
 
     BaseNetwork setCreatedCloudNetwork(BaseNetwork baseNetwork, CreatedCloudNetwork createdCloudNetwork);
 

@@ -3,14 +3,14 @@ package com.sequenceiq.cloudbreak.domain.stack.loadbalancer;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Convert;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 
 import com.sequenceiq.cloudbreak.domain.ProvisionEntity;
@@ -39,7 +39,7 @@ public class LoadBalancer implements ProvisionEntity  {
 
     private String endpoint;
 
-    @OneToMany(mappedBy = "loadBalancer", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @ManyToMany(mappedBy = "loadBalancers", fetch = FetchType.LAZY)
     private Set<TargetGroup> targetGroups = new HashSet<>();
 
     public Long getId() {
@@ -100,6 +100,10 @@ public class LoadBalancer implements ProvisionEntity  {
 
     public void setTargetGroups(Set<TargetGroup> targetGroups) {
         this.targetGroups = targetGroups;
+    }
+
+    public void addTargetGroup(TargetGroup targetGroup) {
+        targetGroups.add(targetGroup);
     }
 
     @Override

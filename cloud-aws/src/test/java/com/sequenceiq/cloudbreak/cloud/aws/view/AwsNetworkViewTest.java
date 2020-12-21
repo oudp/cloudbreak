@@ -1,5 +1,6 @@
 package com.sequenceiq.cloudbreak.cloud.aws.view;
 
+import static com.sequenceiq.cloudbreak.cloud.aws.view.AwsNetworkView.ENDPOINT_GATEWAY_SUBNET_ID;
 import static com.sequenceiq.cloudbreak.cloud.aws.view.AwsNetworkView.IGW;
 import static com.sequenceiq.cloudbreak.cloud.aws.view.AwsNetworkView.SUBNET_ID;
 import static com.sequenceiq.cloudbreak.cloud.aws.view.AwsNetworkView.VPC_CIDR;
@@ -119,6 +120,22 @@ public class AwsNetworkViewTest {
         when(network.getParameter(VPC_CIDRS, List.class)).thenReturn(List.of());
         when(network.getStringParameter(VPC_CIDR)).thenReturn("1.1.1.1");
         assertTrue(underTest.getExistingVpcCidrs().contains("1.1.1.1"));
+    }
+
+    @Test
+    public void testSingleEndpointGatewaySubnet() {
+        when(network.getStringParameter(ENDPOINT_GATEWAY_SUBNET_ID)).thenReturn("subnet-123");
+        assertTrue(underTest.isEndpointGatewaySubnetSet());
+        assertFalse(underTest.isEndpointGatewaySubnetList());
+        assertEquals(List.of("subnet-123"), underTest.getEndpointGatewaySubnetList());
+    }
+
+    @Test
+    public void testMultipleEndpointGatewaySubnets() {
+        when(network.getStringParameter(ENDPOINT_GATEWAY_SUBNET_ID)).thenReturn("subnet-123,subnet-456,subnet-789");
+        assertTrue(underTest.isEndpointGatewaySubnetSet());
+        assertTrue(underTest.isEndpointGatewaySubnetList());
+        assertEquals(List.of("subnet-123", "subnet-456", "subnet-789"), underTest.getEndpointGatewaySubnetList());
     }
 
 }

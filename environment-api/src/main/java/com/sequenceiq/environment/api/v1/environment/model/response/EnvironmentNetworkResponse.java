@@ -55,7 +55,7 @@ public class EnvironmentNetworkResponse extends EnvironmentNetworkBase {
     private Set<String> networkCidrs = new HashSet<>();
 
     @ApiModelProperty(value = EnvironmentModelDescription.ENDPOINT_ACCESS_GATEWAY_SUBNET_METAS)
-    private Map<String, CloudSubnet> gatewayEndpointSubnetMetas;
+    private Map<String, CloudSubnet> endpointGatewaySubnetMetas = Map.of();
 
     public String getCrn() {
         return crn;
@@ -137,12 +137,12 @@ public class EnvironmentNetworkResponse extends EnvironmentNetworkBase {
         this.networkCidrs = networkCidrs;
     }
 
-    public Map<String, CloudSubnet> getGatewayEndpointSubnetMetas() {
-        return gatewayEndpointSubnetMetas;
+    public Map<String, CloudSubnet> getEndpointGatewaySubnetMetas() {
+        return endpointGatewaySubnetMetas;
     }
 
-    public void setGatewayEndpointSubnetMetas(Map<String, CloudSubnet> gatewayEndpointSubnetMetas) {
-        this.gatewayEndpointSubnetMetas = gatewayEndpointSubnetMetas;
+    public void setEndpointGatewaySubnetMetas(Map<String, CloudSubnet> endpointGatewaySubnetMetas) {
+        this.endpointGatewaySubnetMetas = endpointGatewaySubnetMetas;
     }
 
     public static final class EnvironmentNetworkResponseBuilder {
@@ -337,7 +337,7 @@ public class EnvironmentNetworkResponse extends EnvironmentNetworkBase {
             environmentNetworkResponse.setDwxSubnets(dwxSubnets);
             environmentNetworkResponse.setLiftieSubnets(liftieSubnets);
             environmentNetworkResponse.setPublicEndpointAccessGateway(publicEndpointAccessGateway);
-            environmentNetworkResponse.setGatewayEndpointSubnetMetas(endpointGatewaySubnetMetas);
+            environmentNetworkResponse.setEndpointGatewaySubnetMetas(endpointGatewaySubnetMetas);
             environmentNetworkResponse.setEndpointGatewaySubnetIds(endpointGatewaySubnetIds);
             return environmentNetworkResponse;
         }

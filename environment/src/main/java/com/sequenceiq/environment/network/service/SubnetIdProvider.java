@@ -1,5 +1,10 @@
 package com.sequenceiq.environment.network.service;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import javax.inject.Inject;
 
 import org.slf4j.Logger;
@@ -24,12 +29,41 @@ public class SubnetIdProvider {
     private CloudPlatformConnectors cloudPlatformConnectors;
 
     public String provide(NetworkDto network, Tunnel tunnel, CloudPlatform cloudPlatform) {
-        LOGGER.debug("Choosing subnet, network: {},  platform: {}, tunnel: {}", network, cloudPlatform, tunnel);
         if (network == null || network.getSubnetIds() == null || network.getSubnetIds().isEmpty() || network.getCbSubnets() == null
                 || network.getCbSubnets().isEmpty()) {
             LOGGER.debug("Check failed, returning null");
             return null;
         }
+        return selectSubnet(network, tunnel, cloudPlatform, network.getCbSubnetValues(), null);
+    }
+
+    public String provideEndpointGateway(NetworkDto network, CloudPlatform cloudPlatform, String baseSubnetId) {
+        if (baseSubnetId == null || network == null ||
+                ((network.getEndpointGatewaySubnetMetas() == null || network.getEndpointGatewaySubnetMetas().isEmpty())
+                && (network.getCbSubnets() == null || network.getCbSubnets().isEmpty()))) {
+            LOGGER.debug("Check failed, returning null");
+            return null;
+        }
+        // Use tunnel type DIRECT so that any logic that checks if CCM/private subnets are required evaluates to false
+        Tunnel tunnel = Tunnel.DIRECT;
+        Set<String> availabilityZones = network.getCbSubnetValues().stream()
+            .filter(subnet -> baseSubnetId.equals(subnet.getId()))
+            .map(CloudSubnet::getAvailabilityZone)
+            .collect(Collectors.toSet());
+        if (network.getEndpointGatewaySubnetMetas() != null && !network.getEndpointGatewaySubnetMetas().isEmpty()) {
+            return selectSubnet(network, tunnel, cloudPlatform, network.getEndpointGatewaySubnetMetas().values(), availabilityZones);
+        } else {
+            List<CloudSubnet> publicSubnets = network.getCbSubnetValues().stream()
+                .filter(subnet -> !subnet.isPrivateSubnet())
+                .collect(Collectors.toList());
+            return selectSubnet(network, tunnel, cloudPlatform, publicSubnets, availabilityZones);
+        }
+    }
+
+    private String selectSubnet(NetworkDto network, Tunnel tunnel, CloudPlatform cloudPlatform, Collection<CloudSubnet> subnets,
+            Set<String> requiredAvailabilityZones) {
+        LOGGER.debug("Choosing subnet, network: {},  platform: {}, tunnel: {}", network, cloudPlatform, tunnel);
+
         NetworkConnector networkConnector = cloudPlatformConnectors
                 .get(new CloudPlatformVariant(cloudPlatform.name(), cloudPlatform.name()))
                 .networkConnector();
@@ -40,13 +74,22 @@ public class SubnetIdProvider {
         SubnetSelectionParameters subnetSelectionParameters = SubnetSelectionParameters
                 .builder()
                 .withTunnel(tunnel)
+                .withRequiredAvailabilityZones(requiredAvailabilityZones)
                 .build();
 
         SubnetSelectionResult subnetSelectionResult = networkConnector
-                .chooseSubnets(network.getCbSubnetValues(), subnetSelectionParameters);
+                .chooseSubnets(subnets, subnetSelectionParameters);
         CloudSubnet selectedSubnet = subnetSelectionResult.hasResult()
                 ? subnetSelectionResult.getResult().get(0)
-                : fallback(network);
+                : null;
+        if (selectedSubnet == null) {
+            if (requiredAvailabilityZones == null || requiredAvailabilityZones.isEmpty()) {
+                selectedSubnet = fallback(network);
+            } else {
+                LOGGER.debug("Could not find subnet in required AZ {}, returning null", requiredAvailabilityZones);
+                return null;
+            }
+        }
         return selectedSubnet.getId();
     }
 

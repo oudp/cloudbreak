@@ -1,8 +1,10 @@
 package com.sequenceiq.cloudbreak.cloud.aws.loadbalancer;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-
-import org.apache.commons.lang3.StringUtils;
+import java.util.Optional;
+import java.util.Set;
 
 public class AwsLoadBalancer {
 
@@ -12,19 +14,22 @@ public class AwsLoadBalancer {
 
     private final String awsScheme;
 
+    private final String name;
+
     private final List<AwsListener> listeners;
 
-    private final String name;
+    private final Set<String> subnetIds;
 
     private String arn;
 
     private boolean listenerConfigSet;
 
-    public AwsLoadBalancer(AwsLoadBalancerScheme scheme, List<AwsListener> listeners) {
+    public AwsLoadBalancer(AwsLoadBalancerScheme scheme) {
         this.scheme = scheme;
         this.awsScheme = scheme.awsScheme();
-        this.listeners = listeners;
         this.name = getLoadBalancerName(scheme);
+        this.listeners = new ArrayList<>();
+        this.subnetIds = new HashSet<>();
         this.listenerConfigSet = false;
     }
 
@@ -34,6 +39,19 @@ public class AwsLoadBalancer {
 
     public List<AwsListener> getListeners() {
         return listeners;
+    }
+
+    public AwsListener getOrCreateListener(int port) {
+        Optional<AwsListener> listenerOptional = listeners.stream()
+            .filter(l -> l.getPort() == port)
+            .findFirst();
+        if (listenerOptional.isPresent()) {
+            return listenerOptional.get();
+        } else {
+            AwsListener listener = new AwsListener(scheme, port);
+            listeners.add(listener);
+            return listener;
+        }
     }
 
     public String getName() {
@@ -56,6 +74,14 @@ public class AwsLoadBalancer {
         return listenerConfigSet;
     }
 
+    public Set<String> getSubnetIds() {
+        return subnetIds;
+    }
+
+    public void addSubnets(Set<String> newSubnetIds) {
+        subnetIds.addAll(newSubnetIds);
+    }
+
     public boolean validateListenerConfigIsSet() {
         listenerConfigSet = arn != null && !arn.isEmpty() &&
             listeners.stream().allMatch(AwsListener::areTargetGroupArnsSet);
@@ -63,8 +89,7 @@ public class AwsLoadBalancer {
     }
 
     public static String getLoadBalancerName(AwsLoadBalancerScheme scheme) {
-        return LOAD_BALANCER_NAME_PREFIX +
-            StringUtils.capitalize(scheme.name().toLowerCase());
+        return LOAD_BALANCER_NAME_PREFIX + scheme.resourceName();
     }
 
     private static String sanitizeGroupName(String groupName) {

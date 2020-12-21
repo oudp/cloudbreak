@@ -6,8 +6,12 @@ import static com.sequenceiq.cloudbreak.common.type.CloudConstants.AZURE;
 import static com.sequenceiq.environment.environment.flow.creation.event.EnvCreationHandlerSelectors.CREATE_NETWORK_EVENT;
 import static com.sequenceiq.environment.environment.flow.creation.event.EnvCreationStateSelectors.START_PUBLICKEY_CREATION_EVENT;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import javax.ws.rs.BadRequestException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -15,6 +19,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.sequenceiq.cloudbreak.cloud.model.CloudSubnet;
+import com.sequenceiq.common.api.type.PublicEndpointAccessGateway;
 import com.sequenceiq.environment.environment.domain.Environment;
 import com.sequenceiq.environment.environment.dto.EnvironmentDto;
 import com.sequenceiq.environment.environment.flow.creation.event.EnvCreationEvent;
@@ -37,6 +43,8 @@ import reactor.bus.EventBus;
 public class NetworkCreationHandler extends EventSenderAwareHandler<EnvironmentDto> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NetworkCreationHandler.class);
+
+    private static final String UNMATCHED_AZ = "Please provide public subnets in each of the following availability zones: %s";
 
     private final EnvironmentService environmentService;
 
@@ -76,17 +84,21 @@ public class NetworkCreationHandler extends EventSenderAwareHandler<EnvironmentD
             environmentService.findEnvironmentById(environmentDto.getId())
                     .ifPresent(environment -> {
                         setChildEnvironmentNetworkIfItHasParentWithTheSameCloudProvider(environmentDto);
+                        Map<String, CloudSubnet> subnetMetas = null;
+                        Map<String, CloudSubnet> endpointGatewaySubnetMetas = null;
                         if (environmentDto.getNetwork() != null) {
                             LOGGER.debug("Environment ({}) dto has network, hence we're filling it's related subnet fields", environment.getName());
-                            environmentDto.getNetwork().setSubnetMetas(cloudNetworkService.retrieveSubnetMetadata(environmentDto,
-                                    environmentDto.getNetwork()));
-                            environmentDto.getNetwork().setEndpointGatewaySubnetMetas(cloudNetworkService.retrieveEndpointGatewaySubnetMetadata(
+                            subnetMetas = cloudNetworkService.retrieveSubnetMetadata(environmentDto, environmentDto.getNetwork());
+                            environmentDto.getNetwork().setSubnetMetas(subnetMetas);
+                            endpointGatewaySubnetMetas = removePrivateSubnets(cloudNetworkService.retrieveEndpointGatewaySubnetMetadata(
                                 environmentDto, environmentDto.getNetwork()));
+                            environmentDto.getNetwork().setEndpointGatewaySubnetMetas(endpointGatewaySubnetMetas);
                             environmentResourceService.createAndSetNetwork(environment, environmentDto.getNetwork(), environment.getAccountId(),
                                     environmentDto.getNetwork().getSubnetMetas(), environmentDto.getNetwork().getEndpointGatewaySubnetMetas());
                         } else {
                             LOGGER.debug("Environment ({}) dto has no network!", environment.getName());
                         }
+                        validateSubnetsIfProvided(environment, subnetMetas, endpointGatewaySubnetMetas);
                         createCloudNetworkIfNeeded(environmentDto, environment);
                         createProviderSpecificNetworkResourcesIfNeeded(environmentDto, environment.getNetwork());
                         environmentService.save(environment);
@@ -111,6 +123,50 @@ public class NetworkCreationHandler extends EventSenderAwareHandler<EnvironmentD
             NetworkDto parentNetworkDto = parentEnvDto.getNetwork();
             parentNetworkDto.setId(currentEnvDto.getNetwork().getId());
             currentEnvDto.setNetwork(parentNetworkDto);
+        }
+    }
+
+    private Map<String, CloudSubnet> removePrivateSubnets(Map<String, CloudSubnet> endpointGatewaySubnetMetas) {
+        LOGGER.debug("Removing any private subnets from the provided endpoint gateway list because they won't be used.");
+        if (endpointGatewaySubnetMetas == null || endpointGatewaySubnetMetas.isEmpty()) {
+            return Map.of();
+        }
+        return endpointGatewaySubnetMetas.entrySet().stream()
+            .filter(entry -> !entry.getValue().isPrivateSubnet())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private void validateSubnetsIfProvided(Environment environment, Map<String, CloudSubnet> subnetMetas,
+            Map<String, CloudSubnet> endpointGatewaySubnetMetas) {
+        if (hasNetwork(environment) && environment.getNetwork().getPublicEndpointAccessGateway() == PublicEndpointAccessGateway.ENABLED &&
+                environment.getNetwork().getRegistrationType() != RegistrationType.CREATE_NEW) {
+            if (subnetMetas != null && !subnetMetas.isEmpty()) {
+                if (endpointGatewaySubnetMetas != null && !endpointGatewaySubnetMetas.isEmpty()) {
+                    LOGGER.debug("Verifying that provided endpoint gateway subnets share availability zones with provided environment subnets.");
+                    Set<String> subnetAZs = subnetMetas.values().stream()
+                        .map(CloudSubnet::getAvailabilityZone)
+                        .collect(Collectors.toSet());
+                    Set<String> endpointGatewaySubnetAZs = endpointGatewaySubnetMetas.values().stream()
+                        .map(CloudSubnet::getAvailabilityZone)
+                        .collect(Collectors.toSet());
+                    if (!subnetAZs.equals(endpointGatewaySubnetAZs)) {
+                        throw new BadRequestException(String.format(UNMATCHED_AZ, subnetAZs));
+                    }
+                } else {
+                    LOGGER.debug("Verifying that public subnets in availability zones that match the private subnets were provided.");
+                    Set<String> privateAZs = subnetMetas.values().stream()
+                        .filter(CloudSubnet::isPrivateSubnet)
+                        .map(CloudSubnet::getAvailabilityZone)
+                        .collect(Collectors.toSet());
+                    Set<String> publicAZs = subnetMetas.values().stream()
+                        .filter(subnet -> !subnet.isPrivateSubnet())
+                        .map(CloudSubnet::getAvailabilityZone)
+                        .collect(Collectors.toSet());
+                    if (!privateAZs.equals(publicAZs)) {
+                        throw new BadRequestException(String.format(UNMATCHED_AZ, privateAZs));
+                    }
+                }
+            }
         }
     }
 

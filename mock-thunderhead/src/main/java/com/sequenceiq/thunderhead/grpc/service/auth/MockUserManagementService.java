@@ -237,6 +237,8 @@ public class MockUserManagementService extends UserManagementImplBase {
 
     private static final String CDP_LOAD_BALANCER_ENABLEMENT = "CDP_DATA_LAKE_LOAD_BALANCER";
 
+    private static final String CDP_PUBLIC_ENDPOINT_ACCESS_GATEWAY_ENABLEMENT = "CDP_PUBLIC_ENDPOINT_ACCESS_GATEWAY";
+
     private static final String MOCK_RESOURCE = "mock_resource";
 
     private static final String SSH_PUBLIC_KEY_PATTERN = "^ssh-(rsa|ed25519)\\s+AAAA(B|C)3NzaC1.*(|\\n)";
@@ -330,6 +332,9 @@ public class MockUserManagementService extends UserManagementImplBase {
 
     @Value("${auth.mock.datalake.loadbalancer.enable}")
     private boolean datalakeLoadBalancerEnabled;
+
+    @Value("${auth.mock.endpointgateway.enable}")
+    private boolean publicEndpointAccessGatewayEnabled;
 
     private String cbLicense;
 
@@ -643,6 +648,9 @@ public class MockUserManagementService extends UserManagementImplBase {
         }
         if (datalakeLoadBalancerEnabled) {
             builder.addEntitlements(createEntitlement(CDP_LOAD_BALANCER_ENABLEMENT));
+        }
+        if (publicEndpointAccessGatewayEnabled) {
+            builder.addEntitlements(createEntitlement(CDP_PUBLIC_ENDPOINT_ACCESS_GATEWAY_ENABLEMENT));
         }
         responseObserver.onNext(
                 GetAccountResponse.newBuilder()

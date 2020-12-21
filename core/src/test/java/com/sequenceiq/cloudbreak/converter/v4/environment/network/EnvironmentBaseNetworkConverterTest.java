@@ -17,10 +17,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.sequenceiq.cloudbreak.cloud.model.CloudSubnet;
+import com.sequenceiq.cloudbreak.cloud.model.network.SubnetType;
 import com.sequenceiq.cloudbreak.common.converter.MissingResourceNameGenerator;
 import com.sequenceiq.cloudbreak.common.mappable.CloudPlatform;
 import com.sequenceiq.cloudbreak.domain.Network;
 import com.sequenceiq.common.api.type.OutboundInternetTraffic;
+import com.sequenceiq.common.api.type.PublicEndpointAccessGateway;
 import com.sequenceiq.environment.api.v1.environment.model.response.EnvironmentNetworkResponse;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,8 +55,79 @@ public class EnvironmentBaseNetworkConverterTest {
         assertEquals(source.getOutboundInternetTraffic(), network.getOutboundInternetTraffic());
     }
 
+    @Test
+    public void testConvertToLegacyNetworkWithEndpointAccessGatewayAndProvidedSubnets() {
+        EnvironmentNetworkResponse source = new EnvironmentNetworkResponse();
+        Set<String> networkCidrs = Set.of("1.2.3.4/32", "0.0.0.0/0");
+        source.setNetworkCidrs(networkCidrs);
+        source.setOutboundInternetTraffic(OutboundInternetTraffic.DISABLED);
+        source.setSubnetMetas(Map.of("key", getCloudSubnet("AZ-1")));
+        source.setPublicEndpointAccessGateway(PublicEndpointAccessGateway.ENABLED);
+        source.setEndpointGatewaySubnetMetas(Map.of("public-key", getPublicCloudSubnet("public-id-1", "AZ-1")));
+
+        Network network = underTest.convertToLegacyNetwork(source, "AZ-1");
+
+        assertEquals(network.getAttributes().getValue("endpointGatewaySubnetId"), "public-id-1");
+    }
+
+    @Test
+    public void testConvertToLegacyNetworkWithEndpointAccessGatewayAndEnvironmentSubnets() {
+        EnvironmentNetworkResponse source = new EnvironmentNetworkResponse();
+        Set<String> networkCidrs = Set.of("1.2.3.4/32", "0.0.0.0/0");
+        source.setNetworkCidrs(networkCidrs);
+        source.setOutboundInternetTraffic(OutboundInternetTraffic.DISABLED);
+        source.setSubnetMetas(Map.of(
+            "key1", getPrivateCloudSubnet("private-id-1", "AZ-1"),
+            "key2", getPublicCloudSubnet("public-id-1", "AZ-1")
+        ));
+        source.setPublicEndpointAccessGateway(PublicEndpointAccessGateway.ENABLED);
+
+        Network network = underTest.convertToLegacyNetwork(source, "AZ-1");
+
+        assertEquals(network.getAttributes().getValue("endpointGatewaySubnetId"), "public-id-1");
+    }
+
+    @Test
+    public void testConvertToLegacyNetworkWithEndpointAccessGatewayProvidedSubnetsNoPublicSubnets() {
+        EnvironmentNetworkResponse source = new EnvironmentNetworkResponse();
+        Set<String> networkCidrs = Set.of("1.2.3.4/32", "0.0.0.0/0");
+        source.setNetworkCidrs(networkCidrs);
+        source.setOutboundInternetTraffic(OutboundInternetTraffic.DISABLED);
+        source.setSubnetMetas(Map.of("key", getPrivateCloudSubnet("private-id-1", "AZ-1")));
+        source.setPublicEndpointAccessGateway(PublicEndpointAccessGateway.ENABLED);
+        source.setEndpointGatewaySubnetMetas(Map.of("private-key", getPrivateCloudSubnet("private-id-1", "AZ-1")));
+
+        Exception exception = assertThrows(BadRequestException.class, () ->
+            underTest.convertToLegacyNetwork(source, "AZ-1")
+        );
+        assertEquals("Could not find public subnet in availability zone: AZ-1", exception.getMessage());
+    }
+
+    @Test
+    public void testConvertToLegacyNetworkWithEndpointAccessGatewayEnvironmentSubnetsNoPublicSubnets() {
+        EnvironmentNetworkResponse source = new EnvironmentNetworkResponse();
+        Set<String> networkCidrs = Set.of("1.2.3.4/32", "0.0.0.0/0");
+        source.setNetworkCidrs(networkCidrs);
+        source.setOutboundInternetTraffic(OutboundInternetTraffic.DISABLED);
+        source.setSubnetMetas(Map.of("key", getPrivateCloudSubnet("private-id-1", "AZ-1")));
+        source.setPublicEndpointAccessGateway(PublicEndpointAccessGateway.ENABLED);
+
+        Exception exception = assertThrows(BadRequestException.class, () ->
+            underTest.convertToLegacyNetwork(source, "AZ-1")
+        );
+        assertEquals("Could not find public subnet in availability zone: AZ-1", exception.getMessage());
+    }
+
     private CloudSubnet getCloudSubnet(String availabilityZone) {
         return new CloudSubnet("eu-west-1", "name", availabilityZone, "cidr");
+    }
+
+    private CloudSubnet getPublicCloudSubnet(String id, String availabilityZone) {
+        return new CloudSubnet(id, "name", availabilityZone, "cidr", false, true, true, SubnetType.PUBLIC);
+    }
+
+    private CloudSubnet getPrivateCloudSubnet(String id, String availabilityZone) {
+        return new CloudSubnet(id, "name", availabilityZone, "cidr", true, false, false, SubnetType.PRIVATE);
     }
 
     private static class TestEnvironmentBaseNetworkConverter extends EnvironmentBaseNetworkConverter {

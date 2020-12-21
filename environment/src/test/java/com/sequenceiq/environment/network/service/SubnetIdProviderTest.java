@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +26,7 @@ import com.sequenceiq.cloudbreak.cloud.init.CloudPlatformConnectors;
 import com.sequenceiq.cloudbreak.cloud.model.CloudSubnet;
 import com.sequenceiq.cloudbreak.cloud.model.SubnetSelectionParameters;
 import com.sequenceiq.cloudbreak.cloud.model.SubnetSelectionResult;
+import com.sequenceiq.cloudbreak.cloud.model.network.SubnetType;
 import com.sequenceiq.cloudbreak.common.mappable.CloudPlatform;
 import com.sequenceiq.common.api.type.Tunnel;
 import com.sequenceiq.environment.network.dto.NetworkDto;
@@ -161,6 +163,82 @@ class SubnetIdProviderTest {
         Assertions.assertNull(actual);
     }
 
+    @Test
+    public void testSelectSubnetForEndpointAccessGatewayWithProvidedSubnets() {
+        setupConnectorWithSelectionResult(List.of(
+            new CloudSubnet("public-id-2", "name-2", "AZ-b", "")));
+        Map<String, CloudSubnet> subnets = new HashMap<>();
+        subnets.putAll(createPrivateSubnetEntry("id-1", "name-1", "AZ-a"));
+        subnets.putAll(createPrivateSubnetEntry("id-2", "name-2", "AZ-b"));
+        Map<String, CloudSubnet> publicSubnets = new HashMap<>();
+        publicSubnets.putAll(createPublicSubnetEntry("public-id-1", "name-1", "AZ-a"));
+        publicSubnets.putAll(createPublicSubnetEntry("public-id-2", "name-2", "AZ-b"));
+        NetworkDto networkDto = NetworkDto.builder()
+            .withSubnetMetas(subnets)
+            .withCbSubnets(subnets)
+            .withEndpointGatewaySubnetMetas(publicSubnets)
+            .build();
+
+        String actual = underTest.provideEndpointGateway(networkDto, CloudPlatform.AWS, "id-2");
+
+        Assertions.assertNotNull(actual);
+    }
+
+    @Test
+    public void testSelectSubnetForEndpointAccessGatewayWithEnvironmentSubnets() {
+        setupConnectorWithSelectionResult(List.of(
+            new CloudSubnet("id-4", "name-4", "AZ-b", "")));
+        Map<String, CloudSubnet> subnets = new HashMap<>();
+        subnets.putAll(createPrivateSubnetEntry("id-1", "name-1", "AZ-a"));
+        subnets.putAll(createPrivateSubnetEntry("id-2", "name-2", "AZ-b"));
+        subnets.putAll(createPublicSubnetEntry("id-3", "name-3", "AZ-a"));
+        subnets.putAll(createPublicSubnetEntry("id-4", "name-4", "AZ-b"));
+        NetworkDto networkDto = NetworkDto.builder()
+            .withSubnetMetas(subnets)
+            .withCbSubnets(subnets)
+            .build();
+
+        String actual = underTest.provideEndpointGateway(networkDto, CloudPlatform.AWS, "id-2");
+
+        Assertions.assertNotNull(actual);
+    }
+
+    @Test
+    public void testSelectSubnetForEndpointAccessGatewayWithProvidedSubnetsUnmatchedAZ() {
+        setupConnectorWithSelectionError("error message");
+        Map<String, CloudSubnet> subnets = new HashMap<>();
+        subnets.putAll(createPrivateSubnetEntry("id-1", "name-1", "AZ-a"));
+        subnets.putAll(createPrivateSubnetEntry("id-2", "name-2", "AZ-b"));
+        Map<String, CloudSubnet> publicSubnets = new HashMap<>();
+        publicSubnets.putAll(createPublicSubnetEntry("public-id-1", "name-1", "AZ-c"));
+        publicSubnets.putAll(createPublicSubnetEntry("public-id-2", "name-2", "AZ-d"));
+        NetworkDto networkDto = NetworkDto.builder()
+            .withSubnetMetas(subnets)
+            .withCbSubnets(subnets)
+            .withEndpointGatewaySubnetMetas(publicSubnets)
+            .build();
+
+        String actual = underTest.provideEndpointGateway(networkDto, CloudPlatform.AWS, "id-2");
+
+        Assertions.assertNull(actual);
+    }
+
+    @Test
+    public void testSelectSubnetForEndpointAccessGatewayWithOnlyPrivateEnvironmentSubnets() {
+        setupConnectorWithSelectionError("error message");
+        Map<String, CloudSubnet> subnets = new HashMap<>();
+        subnets.putAll(createPrivateSubnetEntry("id-1", "name-1", "AZ-a"));
+        subnets.putAll(createPrivateSubnetEntry("id-2", "name-2", "AZ-b"));
+        NetworkDto networkDto = NetworkDto.builder()
+            .withSubnetMetas(subnets)
+            .withCbSubnets(subnets)
+            .build();
+
+        String actual = underTest.provideEndpointGateway(networkDto, CloudPlatform.AWS, "id-2");
+
+        Assertions.assertNull(actual);
+    }
+
     private NetworkConnector setupConnectorWithSelectionResult(List<CloudSubnet> selectedSubnets) {
         return setupConnector(null, selectedSubnets);
     }
@@ -185,5 +263,19 @@ class SubnetIdProviderTest {
     private void setupNotSupportedConnector() {
         CloudConnector cloudConnector = mock(CloudConnector.class);
         when(cloudPlatformConnectors.get(any())).thenReturn(cloudConnector);
+    }
+
+    private Map<String, CloudSubnet> createPrivateSubnetEntry(String id, String name, String aZ) {
+        return Map.of(
+            id,
+            new CloudSubnet(id, name, aZ, "", true, false, false, SubnetType.PRIVATE)
+        );
+    }
+
+    private Map<String, CloudSubnet> createPublicSubnetEntry(String id, String name, String aZ) {
+        return Map.of(
+            id,
+            new CloudSubnet(id, name, aZ, "", false, true, true, SubnetType.PUBLIC)
+        );
     }
 }

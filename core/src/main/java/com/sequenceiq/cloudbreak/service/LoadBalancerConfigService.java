@@ -64,7 +64,7 @@ public class LoadBalancerConfigService {
             .append(stack.getName())
             .append('-')
             .append(ENDPOINT_SUFFIX);
-        if (LoadBalancerType.PUBLIC.equals(type)) {
+        if (LoadBalancerType.ENDPOINT_ACCESS_GATEWAY.equals(type)) {
             name.append('-').append(PUBLIC_SUFFIX);
         }
         return name.toString();

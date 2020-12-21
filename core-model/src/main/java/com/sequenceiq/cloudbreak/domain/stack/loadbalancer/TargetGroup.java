@@ -1,5 +1,6 @@
 package com.sequenceiq.cloudbreak.domain.stack.loadbalancer;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import javax.persistence.Convert;
@@ -9,7 +10,6 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
 import javax.persistence.SequenceGenerator;
 
 import com.sequenceiq.cloudbreak.domain.ProvisionEntity;
@@ -27,11 +27,11 @@ public class TargetGroup implements ProvisionEntity {
     @Convert(converter = TargetGroupTypeConverter.class)
     private TargetGroupType type;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    private LoadBalancer loadBalancer;
+    @ManyToMany(fetch = FetchType.EAGER)
+    private Set<LoadBalancer> loadBalancers = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
-    private Set<InstanceGroup> instanceGroups;
+    private Set<InstanceGroup> instanceGroups = new HashSet<>();
 
     public Long getId() {
         return id;
@@ -45,12 +45,16 @@ public class TargetGroup implements ProvisionEntity {
         this.type = type;
     }
 
-    public LoadBalancer getLoadBalancer() {
-        return loadBalancer;
+    public Set<LoadBalancer> getLoadBalancers() {
+        return loadBalancers;
     }
 
-    public void setLoadBalancer(LoadBalancer loadBalancer) {
-        this.loadBalancer = loadBalancer;
+    public void setLoadBalancers(Set<LoadBalancer> loadBalancers) {
+        this.loadBalancers = loadBalancers;
+    }
+
+    public void addLoadBalancer(LoadBalancer loadBalancer) {
+        loadBalancers.add(loadBalancer);
     }
 
     public Set<InstanceGroup> getInstanceGroups() {

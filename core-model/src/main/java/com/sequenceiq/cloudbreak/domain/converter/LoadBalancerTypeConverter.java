@@ -7,6 +7,6 @@ public class LoadBalancerTypeConverter extends DefaultEnumConverter<LoadBalancer
 
     @Override
     public LoadBalancerType getDefault() {
-        return LoadBalancerType.PRIVATE;
+        return LoadBalancerType.DEFAULT_GATEWAY;
     }
 }

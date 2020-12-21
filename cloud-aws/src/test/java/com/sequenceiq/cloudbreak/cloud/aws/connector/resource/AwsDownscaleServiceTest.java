@@ -220,8 +220,8 @@ class AwsDownscaleServiceTest {
         List<CloudResource> resources = Collections.emptyList();
         InstanceAuthentication instanceAuthentication = new InstanceAuthentication("sshkey", "", "cloudbreak");
         List<CloudInstance> cloudInstances = List.of(new CloudInstance("i-worker1", mock(InstanceTemplate.class), instanceAuthentication));
-        CloudLoadBalancer privateLoadBalancer = new CloudLoadBalancer(LoadBalancerType.PRIVATE);
-        CloudLoadBalancer publicLoadBalancer = new CloudLoadBalancer(LoadBalancerType.PUBLIC);
+        CloudLoadBalancer privateLoadBalancer = new CloudLoadBalancer(LoadBalancerType.DEFAULT_GATEWAY);
+        CloudLoadBalancer publicLoadBalancer = new CloudLoadBalancer(LoadBalancerType.ENDPOINT_ACCESS_GATEWAY);
 
         AuthenticatedContext authenticatedContext = new AuthenticatedContext(new CloudContext(1L, "teststack", "crn", "AWS", "AWS",
             Location.location(Region.region("eu-west-1"), AvailabilityZone.availabilityZone("eu-west-1a")), "1", "1"),

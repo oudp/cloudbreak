@@ -477,8 +477,8 @@ class AwsUpscaleServiceTest {
         List<Group> groups = new ArrayList<>();
 
         List<CloudLoadBalancer> loadBalancers = List.of(
-            new CloudLoadBalancer(LoadBalancerType.PRIVATE),
-            new CloudLoadBalancer(LoadBalancerType.PUBLIC)
+            new CloudLoadBalancer(LoadBalancerType.DEFAULT_GATEWAY),
+            new CloudLoadBalancer(LoadBalancerType.ENDPOINT_ACCESS_GATEWAY)
         );
 
         Group master = getMasterGroup(instanceAuthentication);

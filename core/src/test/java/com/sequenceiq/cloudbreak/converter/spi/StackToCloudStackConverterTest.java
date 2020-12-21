@@ -964,7 +964,7 @@ public class StackToCloudStackConverterTest {
         TargetGroup targetGroup = mock(TargetGroup.class);
         when(targetGroup.getType()).thenReturn(TargetGroupType.KNOX);
         LoadBalancer loadBalancer = mock(LoadBalancer.class);
-        when(loadBalancer.getType()).thenReturn(LoadBalancerType.PRIVATE);
+        when(loadBalancer.getType()).thenReturn(LoadBalancerType.DEFAULT_GATEWAY);
         when(loadBalancer.getId()).thenReturn(1L);
         when(loadBalancerPersistenceService.findByStackId(anyLong())).thenReturn(Set.of(loadBalancer));
         when(targetGroupPersistenceService.findByLoadBalancerId(anyLong())).thenReturn(Set.of(targetGroup));
@@ -975,7 +975,7 @@ public class StackToCloudStackConverterTest {
 
         assertEquals(1, result.getLoadBalancers().size());
         CloudLoadBalancer cloudLoadBalancer = result.getLoadBalancers().iterator().next();
-        assertEquals(LoadBalancerType.PRIVATE, cloudLoadBalancer.getType());
+        assertEquals(LoadBalancerType.DEFAULT_GATEWAY, cloudLoadBalancer.getType());
         assertEquals(Set.of(443), cloudLoadBalancer.getPortToTargetGroupMapping().keySet());
         Set<String> groupNames = cloudLoadBalancer.getPortToTargetGroupMapping().values().stream()
             .flatMap(Collection::stream)
@@ -984,6 +984,50 @@ public class StackToCloudStackConverterTest {
             .map(Group::getName)
             .collect(Collectors.toSet());
         assertEquals(Set.of("group1", "group2"), groupNames);
+    }
+
+    @Test
+    public void testConvertWithMultipleKnoxLoadBalancers() {
+        Set<InstanceGroup> instanceGroups = new LinkedHashSet<>();
+        InstanceGroup instanceGroup1 = mock(InstanceGroup.class);
+        InstanceGroup instanceGroup2 = mock(InstanceGroup.class);
+        when(instanceGroup1.getGroupName()).thenReturn("group1");
+        when(instanceGroup2.getGroupName()).thenReturn("group2");
+        instanceGroups.add(instanceGroup1);
+        instanceGroups.add(instanceGroup2);
+        when(stack.getInstanceGroupsAsList()).thenReturn(new ArrayList<>(instanceGroups));
+        Template template = new Template();
+        template.setVolumeTemplates(Sets.newHashSet());
+        when(instanceGroup1.getTemplate()).thenReturn(template);
+        when(instanceGroup1.getNotDeletedInstanceMetaDataSet()).thenReturn(Collections.emptySet());
+        when(instanceGroup1.getStack()).thenReturn(stack);
+        when(instanceGroup2.getTemplate()).thenReturn(template);
+        when(instanceGroup2.getNotDeletedInstanceMetaDataSet()).thenReturn(Collections.emptySet());
+        when(instanceGroup2.getStack()).thenReturn(stack);
+        TargetGroup targetGroup = mock(TargetGroup.class);
+        when(targetGroup.getType()).thenReturn(TargetGroupType.KNOX);
+        LoadBalancer internalLoadBalancer = mock(LoadBalancer.class);
+        when(internalLoadBalancer.getType()).thenReturn(LoadBalancerType.DEFAULT_GATEWAY);
+        when(internalLoadBalancer.getId()).thenReturn(1L);
+        LoadBalancer externalLoadBalancer = mock(LoadBalancer.class);
+        when(externalLoadBalancer.getType()).thenReturn(LoadBalancerType.ENDPOINT_ACCESS_GATEWAY);
+        when(externalLoadBalancer.getId()).thenReturn(2L);
+        when(loadBalancerPersistenceService.findByStackId(anyLong())).thenReturn(Set.of(internalLoadBalancer, externalLoadBalancer));
+        when(targetGroupPersistenceService.findByLoadBalancerId(anyLong())).thenReturn(Set.of(targetGroup));
+        when(instanceGroupService.findByTargetGroupId(anyLong())).thenReturn(Set.of(instanceGroup1, instanceGroup2));
+        when(loadBalancerConfigService.getPortsForTargetGroup(any(TargetGroup.class))).thenReturn(Set.of(443));
+
+        CloudStack result = underTest.convert(stack);
+
+        assertEquals(2, result.getLoadBalancers().size());
+        Optional<CloudLoadBalancer> internalCloudLoadBalancer = result.getLoadBalancers().stream()
+            .filter(lb -> lb.getType() == LoadBalancerType.DEFAULT_GATEWAY)
+            .findFirst();
+        assertTrue(internalCloudLoadBalancer.isPresent());
+        Optional<CloudLoadBalancer> externalCloudLoadBalancer = result.getLoadBalancers().stream()
+            .filter(lb -> lb.getType() == LoadBalancerType.ENDPOINT_ACCESS_GATEWAY)
+            .findFirst();
+        assertTrue(externalCloudLoadBalancer.isPresent());
     }
 
 }

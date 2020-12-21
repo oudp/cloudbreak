@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import java.util.Optional;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,8 +24,11 @@ import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
+import com.amazonaws.services.elasticloadbalancingv2.model.LoadBalancer;
 import com.sequenceiq.cloudbreak.cloud.aws.client.AmazonAutoScalingRetryClient;
 import com.sequenceiq.cloudbreak.cloud.aws.client.AmazonCloudFormationRetryClient;
+import com.sequenceiq.cloudbreak.cloud.aws.loadbalancer.AwsLoadBalancerScheme;
+import com.sequenceiq.cloudbreak.cloud.aws.loadbalancer.converter.LoadBalancerTypeConverter;
 import com.sequenceiq.cloudbreak.cloud.aws.util.AwsLifeCycleMapper;
 import com.sequenceiq.cloudbreak.cloud.aws.view.AwsCredentialView;
 import com.sequenceiq.cloudbreak.cloud.context.AuthenticatedContext;
@@ -33,6 +37,7 @@ import com.sequenceiq.cloudbreak.cloud.model.AvailabilityZone;
 import com.sequenceiq.cloudbreak.cloud.model.CloudCredential;
 import com.sequenceiq.cloudbreak.cloud.model.CloudInstance;
 import com.sequenceiq.cloudbreak.cloud.model.CloudInstanceLifeCycle;
+import com.sequenceiq.cloudbreak.cloud.model.CloudLoadBalancerMetadata;
 import com.sequenceiq.cloudbreak.cloud.model.CloudVmMetaDataStatus;
 import com.sequenceiq.cloudbreak.cloud.model.InstanceAuthentication;
 import com.sequenceiq.cloudbreak.cloud.model.InstanceStatus;
@@ -41,6 +46,7 @@ import com.sequenceiq.cloudbreak.cloud.model.Location;
 import com.sequenceiq.cloudbreak.cloud.model.Region;
 import com.sequenceiq.cloudbreak.cloud.model.Volume;
 import com.sequenceiq.cloudbreak.cloud.scheduler.SyncPollingScheduler;
+import com.sequenceiq.common.api.type.LoadBalancerType;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AwsMetaDataCollectorTest {
@@ -89,6 +95,9 @@ public class AwsMetaDataCollectorTest {
 
     @Mock
     private DescribeInstancesResult describeInstancesResultSlave;
+
+    @Mock
+    private LoadBalancerTypeConverter loadBalancerTypeConverter;
 
     @InjectMocks
     private AwsMetadataCollector awsMetadataCollector;
@@ -307,6 +316,63 @@ public class AwsMetaDataCollectorTest {
         Assert.assertTrue(statuses.stream().anyMatch(predicate -> "publicIp2".equals(predicate.getMetaData().getPublicIp())));
     }
 
+    @Test
+    public void testCollectLoadBalancers() {
+        setupMethodsForLoadBalancer();
+
+        AuthenticatedContext ac = authenticatedContext();
+        List<CloudLoadBalancerMetadata> metadata = awsMetadataCollector.collectLoadBalancer(ac,
+            List.of(LoadBalancerType.DEFAULT_GATEWAY, LoadBalancerType.ENDPOINT_ACCESS_GATEWAY));
+
+        Assert.assertEquals(2, metadata.size());
+        Optional<CloudLoadBalancerMetadata> internalMetadata = metadata.stream()
+            .filter(m -> m.getType() == LoadBalancerType.DEFAULT_GATEWAY)
+            .findFirst();
+        Assert.assertTrue(internalMetadata.isPresent());
+        Assert.assertEquals("internal-lb.aws.dns", internalMetadata.get().getCloudDns());
+        Assert.assertEquals("zone1", internalMetadata.get().getHostedZoneId());
+        Optional<CloudLoadBalancerMetadata> externalMetadata = metadata.stream()
+            .filter(m -> m.getType() == LoadBalancerType.ENDPOINT_ACCESS_GATEWAY)
+            .findFirst();
+        Assert.assertTrue(externalMetadata.isPresent());
+        Assert.assertEquals("external-lb.aws.dns", externalMetadata.get().getCloudDns());
+        Assert.assertEquals("zone2", externalMetadata.get().getHostedZoneId());
+    }
+
+    @Test
+    public void testCollectLoadBalancerOnlyDefaultGateway() {
+        setupMethodsForLoadBalancer();
+
+        AuthenticatedContext ac = authenticatedContext();
+        List<CloudLoadBalancerMetadata> metadata = awsMetadataCollector.collectLoadBalancer(ac,
+            List.of(LoadBalancerType.DEFAULT_GATEWAY));
+
+        Assert.assertEquals(1, metadata.size());
+        Optional<CloudLoadBalancerMetadata> internalMetadata = metadata.stream()
+            .filter(m -> m.getType() == LoadBalancerType.DEFAULT_GATEWAY)
+            .findFirst();
+        Assert.assertTrue(internalMetadata.isPresent());
+        Assert.assertEquals("internal-lb.aws.dns", internalMetadata.get().getCloudDns());
+        Assert.assertEquals("zone1", internalMetadata.get().getHostedZoneId());
+    }
+
+    @Test
+    public void testCollectLoadBalancerOnlyEndpointAccessGateway() {
+        setupMethodsForLoadBalancer();
+
+        AuthenticatedContext ac = authenticatedContext();
+        List<CloudLoadBalancerMetadata> metadata = awsMetadataCollector.collectLoadBalancer(ac,
+            List.of(LoadBalancerType.ENDPOINT_ACCESS_GATEWAY));
+
+        Assert.assertEquals(1, metadata.size());
+        Optional<CloudLoadBalancerMetadata> externalMetadata = metadata.stream()
+            .filter(m -> m.getType() == LoadBalancerType.ENDPOINT_ACCESS_GATEWAY)
+            .findFirst();
+        Assert.assertTrue(externalMetadata.isPresent());
+        Assert.assertEquals("external-lb.aws.dns", externalMetadata.get().getCloudDns());
+        Assert.assertEquals("zone2", externalMetadata.get().getHostedZoneId());
+    }
+
     private Reservation getReservation(Instance... instance) {
         List<Instance> instances = Arrays.asList(instance);
         Reservation r = new Reservation();
@@ -322,5 +388,19 @@ public class AwsMetaDataCollectorTest {
         AuthenticatedContext authenticatedContext = new AuthenticatedContext(cloudContext, credential);
         authenticatedContext.putParameter(AmazonEC2Client.class, amazonEC2Client);
         return authenticatedContext;
+    }
+
+    private void setupMethodsForLoadBalancer() {
+        LoadBalancer internalLoadBalancer = new LoadBalancer()
+            .withDNSName("internal-lb.aws.dns")
+            .withCanonicalHostedZoneId("zone1");
+        LoadBalancer externalLoadBalancer = new LoadBalancer()
+            .withDNSName("external-lb.aws.dns")
+            .withCanonicalHostedZoneId("zone2");
+
+        when(cloudFormationStackUtil.getLoadBalancerByLogicalId(any(), eq("LoadBalancerInternal"))).thenReturn(internalLoadBalancer);
+        when(cloudFormationStackUtil.getLoadBalancerByLogicalId(any(), eq("LoadBalancerExternal"))).thenReturn(externalLoadBalancer);
+        when(loadBalancerTypeConverter.convert(eq(LoadBalancerType.DEFAULT_GATEWAY))).thenReturn(AwsLoadBalancerScheme.INTERNAL);
+        when(loadBalancerTypeConverter.convert(eq(LoadBalancerType.ENDPOINT_ACCESS_GATEWAY))).thenReturn(AwsLoadBalancerScheme.INTERNET_FACING);
     }
 }
