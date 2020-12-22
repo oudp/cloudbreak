@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import com.sequenceiq.common.api.type.LoadBalancerType;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -177,6 +178,13 @@ public class StackUtil {
     }
 
     public String extractClusterManagerAddress(Stack stack) {
+        if (stack.getLoadBalancers() != null && stack.getLoadBalancers().size() != 0) {
+            return (stack.getLoadBalancers().stream()
+                    .filter(lb -> lb.getType() == LoadBalancerType.PUBLIC).findAny()
+                    .orElse(stack.getLoadBalancers().iterator().next()))
+                    .getFqdn();
+        }
+
         String fqdn = stack.getFqdn();
         if (fqdn != null) {
             return fqdn;

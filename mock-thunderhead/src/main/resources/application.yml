@@ -34,4 +34,4 @@ auth:
     database.wire.encryption.enable: true
     datahub.runtime.upgrade.enable: true
     embedded.database.on.attached.disk.enable: true
-    datalake.loadbalancer.enable: false
+    datalake.loadbalancer.enable: true

@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 
+import com.sequenceiq.common.api.type.LoadBalancerType;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -629,7 +630,19 @@ public class ClusterHostServiceRunner {
             gateway.put("userfacingkey", cluster.getStack().getSecurityConfig().getUserFacingKey());
             gateway.put("userfacingcert", cluster.getStack().getSecurityConfig().getUserFacingCert());
         }
-        String fqdn = cluster.getFqdn();
+
+        String fqdn = null;
+        if (cluster.getStack().getLoadBalancers() != null && cluster.getStack().getLoadBalancers().size() > 0) {
+            fqdn = (cluster.getStack().getLoadBalancers().stream()
+                    .filter(lb -> lb.getType() == LoadBalancerType.PUBLIC).findAny()
+                    .orElse(cluster.getStack().getLoadBalancers().iterator().next()))
+                    .getFqdn();
+        }
+
+        if (fqdn == null) {
+            fqdn = cluster.getFqdn();
+        }
+
         if (isNotEmpty(fqdn)) {
             gateway.put("userfacingfqdn", fqdn);
             String[] fqdnParts = fqdn.split("\\.", 2);
