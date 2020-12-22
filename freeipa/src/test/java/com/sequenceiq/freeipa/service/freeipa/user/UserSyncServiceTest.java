@@ -4,9 +4,7 @@ import static com.sequenceiq.cloudbreak.auth.ThreadBasedUserCrnProvider.INTERNAL
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -153,7 +151,7 @@ class UserSyncServiceTest {
         Operation operation = mock(Operation.class);
         when(operation.getStatus()).thenReturn(OperationState.RUNNING);
         when(operation.getOperationId()).thenReturn("operationId");
-        when(operationService.startOperation(anyString(), any(OperationType.class), anyCollection(), anyCollection()))
+        when(operationService.startOperation(anyString(), any(OperationType.class), anyCollection()))
                 .thenReturn(operation);
         UserSyncStatus userSyncStatus = mock(UserSyncStatus.class);
         when(userSyncStatusService.getOrCreateForStack(any(Stack.class))).thenReturn(userSyncStatus);
@@ -165,12 +163,11 @@ class UserSyncServiceTest {
             assertEquals(INTERNAL_ACTOR_CRN, ThreadBasedUserCrnProvider.getUserCrn());
             return null;
         })
-                .when(spyService).asyncSynchronizeUsers(anyString(), anyString(), anyString(), anyList(), any(), anyBoolean());
+                .when(spyService).asyncSynchronizeUsers(anyString(), anyString(), any());
 
-        spyService.synchronizeUsers("accountId", "actorCrn",
-                Set.of(), Set.of(), Set.of());
+        spyService.synchronizeUsers("accountId", "actorCrn", Set.of());
 
-        verify(spyService).asyncSynchronizeUsers(anyString(), anyString(), anyString(), anyList(), any(), anyBoolean());
+        verify(spyService).asyncSynchronizeUsers(anyString(), anyString(), any());
     }
 
     @Test

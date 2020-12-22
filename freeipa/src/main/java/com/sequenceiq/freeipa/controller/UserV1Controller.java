@@ -18,9 +18,9 @@ import com.sequenceiq.authorization.annotation.CheckPermissionByResourceCrn;
 import com.sequenceiq.authorization.annotation.CustomPermissionCheck;
 import com.sequenceiq.authorization.annotation.ResourceCrn;
 import com.sequenceiq.authorization.resource.AuthorizationResourceAction;
-import com.sequenceiq.cloudbreak.auth.altus.InternalCrnBuilder;
 import com.sequenceiq.cloudbreak.auth.ThreadBasedUserCrnProvider;
 import com.sequenceiq.cloudbreak.auth.altus.Crn;
+import com.sequenceiq.cloudbreak.auth.altus.InternalCrnBuilder;
 import com.sequenceiq.cloudbreak.auth.security.internal.TenantAwareParam;
 import com.sequenceiq.cloudbreak.common.exception.BadRequestException;
 import com.sequenceiq.freeipa.api.v1.freeipa.user.UserV1Endpoint;
@@ -35,7 +35,6 @@ import com.sequenceiq.freeipa.converter.freeipa.user.OperationToSyncOperationSta
 import com.sequenceiq.freeipa.entity.Operation;
 import com.sequenceiq.freeipa.service.freeipa.user.EnvironmentUserSyncStateCalculator;
 import com.sequenceiq.freeipa.service.freeipa.user.PasswordService;
-import com.sequenceiq.freeipa.service.freeipa.user.UserSyncRequestFilter;
 import com.sequenceiq.freeipa.service.freeipa.user.UserSyncService;
 import com.sequenceiq.freeipa.service.operation.OperationService;
 
@@ -64,24 +63,10 @@ public class UserV1Controller implements UserV1Endpoint {
     public SyncOperationStatus synchronizeUser(SynchronizeUserRequest request) {
         String userCrn = checkActorCrn();
         String accountId = ThreadBasedUserCrnProvider.getAccountId();
-        LOGGER.debug("synchronizeUser() requested for user {} in account {}", userCrn, accountId);
+        LOGGER.debug("synchronizeUser() is deprecated, sync is possible only for environments.");
         Set<String> environmentCrnFilter = request == null ? Set.of() : nullToEmpty(request.getEnvironments());
-        Set<String> userCrnFilter = Set.of();
-        Set<String> machineUserCrnFilter = Set.of();
-        Crn crn = Crn.safeFromString(userCrn);
-        switch (crn.getResourceType()) {
-            case USER:
-                userCrnFilter = Set.of(userCrn);
-                break;
-            case MACHINE_USER:
-                machineUserCrnFilter = Set.of(userCrn);
-                break;
-            default:
-                throw new BadRequestException(String.format("UserCrn %s is not of resoure type USER or MACHINE_USER", userCrn));
-        }
-        UserSyncRequestFilter userSyncFilter = new UserSyncRequestFilter(userCrnFilter, machineUserCrnFilter, Optional.empty());
-        Operation syncOperation = userSyncService.synchronizeUsersWithCustomPermissionCheck(accountId, userCrn, environmentCrnFilter,
-                userSyncFilter, AuthorizationResourceAction.DESCRIBE_ENVIRONMENT);
+        Operation syncOperation = userSyncService.synchronizeUsersWithCustomPermissionCheck(accountId, userCrn,
+                environmentCrnFilter, AuthorizationResourceAction.DESCRIBE_ENVIRONMENT);
         return checkOperationRejected(operationToSyncOperationStatus.convert(syncOperation));
     }
 
@@ -90,14 +75,9 @@ public class UserV1Controller implements UserV1Endpoint {
     public SyncOperationStatus synchronizeAllUsers(SynchronizeAllUsersRequest request) {
         String userCrn = checkActorCrn();
         String accountId = determineAccountId(userCrn, request.getAccountId());
-
         LOGGER.debug("synchronizeAllUsers() requested for account {}", accountId);
-
-        UserSyncRequestFilter userSyncFilter = new UserSyncRequestFilter(nullToEmpty(request.getUsers()),
-                nullToEmpty(request.getMachineUsers()),
-                getOptionalDeletedWorkloadUser(request.getDeletedWorkloadUsers()));
         Operation syncOperation = userSyncService.synchronizeUsersWithCustomPermissionCheck(accountId, userCrn,
-                nullToEmpty(request.getEnvironments()), userSyncFilter, AuthorizationResourceAction.DESCRIBE_ENVIRONMENT);
+                nullToEmpty(request.getEnvironments()), AuthorizationResourceAction.DESCRIBE_ENVIRONMENT);
         return checkOperationRejected(operationToSyncOperationStatus.convert(syncOperation));
     }
 

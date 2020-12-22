@@ -72,7 +72,7 @@ class UserSyncPollerTest {
         underTest.syncAllFreeIpaStacks();
 
         verify(userSyncService).synchronizeUsers(UserSyncTestUtils.ACCOUNT_ID, INTERNAL_ACTOR_CRN,
-                Set.of(UserSyncTestUtils.ENVIRONMENT_CRN), Set.of(), Set.of());
+                Set.of(UserSyncTestUtils.ENVIRONMENT_CRN));
     }
 
     @Test
@@ -84,7 +84,7 @@ class UserSyncPollerTest {
         underTest.syncAllFreeIpaStacks();
 
         verify(userSyncService, times(0))
-                .synchronizeUsers(any(), any(), any(), any(), any());
+                .synchronizeUsers(any(), any(), any());
     }
 
     @Test
@@ -97,7 +97,7 @@ class UserSyncPollerTest {
         underTest.syncAllFreeIpaStacks();
 
         verify(userSyncService).synchronizeUsers(UserSyncTestUtils.ACCOUNT_ID, INTERNAL_ACTOR_CRN,
-                Set.of(UserSyncTestUtils.ENVIRONMENT_CRN), Set.of(), Set.of());
+                Set.of(UserSyncTestUtils.ENVIRONMENT_CRN));
     }
 
     @Test
@@ -110,7 +110,7 @@ class UserSyncPollerTest {
         underTest.syncAllFreeIpaStacks();
 
         verify(userSyncService, times(0))
-                .synchronizeUsers(any(), any(), any(), any(), any());
+                .synchronizeUsers(any(), any(), any());
     }
 
     @Test
@@ -121,7 +121,7 @@ class UserSyncPollerTest {
         underTest.syncAllFreeIpaStacks();
 
         verify(userSyncService, times(0))
-                .synchronizeUsers(any(), any(), any(), any(), any());
+                .synchronizeUsers(any(), any(), any());
     }
 
     private Stack setupMockStackService(Stack stack) {
